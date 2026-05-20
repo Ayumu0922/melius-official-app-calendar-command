@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#dcecfb" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232f7cff'/%3E%3Cpath d='M9 8h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2Z' fill='%23fff'/%3E%3Cpath d='M11 6v5M21 6v5M7 13h18' stroke='%232f7cff' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='18' r='2.6' fill='%232f7cff'/%3E%3C/svg%3E" />
+    <script>
+      (function () {
+        var themeKey = 'melius-official-app-calendar-command-theme';
+        var localeKey = 'melius-official-app-calendar-command-locale';
+        var root = document.documentElement;
+        var params = new URLSearchParams(window.location.search);
+        var requestedLocale = params.get('locale') || params.get('lang') || params.get('language') || params.get('melius_locale');
+        var requestedTheme = params.get('theme') || params.get('themeMode') || params.get('colorScheme') || params.get('melius_theme');
+        var locale = requestedLocale === 'ja' || requestedLocale === 'en' ? requestedLocale : 'ja';
+        var preference = requestedTheme === 'light' || requestedTheme === 'dark' || requestedTheme === 'system' ? requestedTheme : 'system';
+
+        try {
+          if (requestedLocale !== 'ja' && requestedLocale !== 'en') {
+            var storedLocale = localStorage.getItem(localeKey);
+            if (storedLocale === 'ja' || storedLocale === 'en') locale = storedLocale;
+          }
+
+          if (requestedTheme !== 'light' && requestedTheme !== 'dark' && requestedTheme !== 'system') {
+            var storedTheme = localStorage.getItem(themeKey);
+            if (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system') preference = storedTheme;
+          }
+        } catch (error) {
+          locale = requestedLocale === 'ja' || requestedLocale === 'en' ? requestedLocale : 'ja';
+          preference = requestedTheme === 'light' || requestedTheme === 'dark' || requestedTheme === 'system' ? requestedTheme : 'system';
+        }
+
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var resolved = preference === 'system' ? (prefersDark ? 'dark' : 'light') : preference;
+        root.lang = locale;
+        root.dataset.theme = resolved;
+        root.dataset.themePreference = preference;
+        root.classList.toggle('dark', resolved === 'dark');
+        root.style.colorScheme = resolved === 'dark' ? 'dark' : 'light';
+      })();
+    </script>
+    <title>Calendar Command Template</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

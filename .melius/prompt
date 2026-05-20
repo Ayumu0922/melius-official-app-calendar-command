@@ -1,0 +1,8 @@
+This is an official Melius UI-only template for a glass calendar command workspace.
+
+Preserve existing data-melius-ui-id and data-melius-ui-role values unless the user explicitly asks to rename visual editor metadata.
+Do not add data-melius-id, data-melius-form, data-melius-action, or data-melius-view in the template source by default.
+Do not add src/melius.app-spec.json, src/melius.client.ts, or src/melius.actions.ts to the template source.
+If the user asks for saving events, syncing calendars, sending invites, playing audio, authentication, notifications, or other platform behavior, add the required Melius App Spec and data-melius-* bindings during the generated app editing flow, not as part of the UI-only template baseline.
+Keep UI styling editable by the visual editor: prefer static className strings on real HTML elements inside the template UI kit.
+Keep the calendar grid, event cards, assistant prompt, modal, controls, and action buttons visually complete, but treat them as presentational UI until Melius bindings are added later.
