@@ -14,12 +14,12 @@
 html {
   min-width: 320px;
   min-height: 100%;
-  background: #dfeefd;
+  background: #eef0f2;
   color-scheme: light;
 }
 
 html[data-theme="dark"] {
-  background: #08111f;
+  background: #09090a;
   color-scheme: dark;
 }
 
@@ -59,32 +59,34 @@ svg {
   --app-fg: #ffffff;
   --text-muted: rgba(255, 255, 255, 0.72);
   --text-soft: rgba(255, 255, 255, 0.52);
-  --glass-bg: rgba(255, 255, 255, 0.16);
-  --glass-strong: rgba(255, 255, 255, 0.24);
-  --glass-border: rgba(255, 255, 255, 0.23);
-  --glass-border-soft: rgba(255, 255, 255, 0.13);
-  --button-bg: rgba(255, 255, 255, 0.12);
-  --button-hover: rgba(255, 255, 255, 0.22);
-  --primary: #2f7cff;
-  --primary-hover: #1f6ef1;
-  --shadow: 0 24px 70px rgba(15, 47, 92, 0.28);
+  --glass-bg: rgba(39, 39, 42, 0.18);
+  --glass-strong: rgba(39, 39, 42, 0.24);
+  --glass-border: rgba(255, 255, 255, 0.28);
+  --glass-border-soft: rgba(255, 255, 255, 0.15);
+  --button-bg: rgba(255, 255, 255, 0.16);
+  --button-hover: rgba(255, 255, 255, 0.28);
+  --primary: #171717;
+  --primary-hover: #2b2b2b;
+  --primary-fg: #ffffff;
+  --shadow: 0 24px 70px rgba(24, 24, 27, 0.26);
   color: var(--app-fg);
 }
 
 :root[data-theme="dark"] {
-  --glass-bg: rgba(10, 20, 36, 0.36);
-  --glass-strong: rgba(15, 31, 54, 0.52);
-  --glass-border: rgba(180, 214, 255, 0.24);
-  --glass-border-soft: rgba(180, 214, 255, 0.13);
-  --button-bg: rgba(205, 226, 255, 0.11);
-  --button-hover: rgba(205, 226, 255, 0.2);
-  --primary: #4892ff;
-  --primary-hover: #5ca0ff;
+  --glass-bg: rgba(19, 19, 21, 0.44);
+  --glass-strong: rgba(34, 34, 37, 0.58);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-border-soft: rgba(255, 255, 255, 0.09);
+  --button-bg: rgba(255, 255, 255, 0.1);
+  --button-hover: rgba(255, 255, 255, 0.18);
+  --primary: #f4f4f5;
+  --primary-hover: #ffffff;
+  --primary-fg: #111113;
   --shadow: 0 24px 70px rgba(0, 0, 0, 0.46);
 }
 
 ::selection {
-  background: rgba(47, 124, 255, 0.38);
+  background: rgba(39, 39, 42, 0.34);
 }
 
 @keyframes appFadeIn {
@@ -129,11 +131,11 @@ svg {
   width: 100vw;
   overflow: hidden;
   color: var(--app-fg);
-  background: #dcecfb;
+  background: #eef0f2;
 }
 
 [data-theme="dark"] .app-surface {
-  background: #08111f;
+  background: #09090a;
 }
 
 .landscape-background {
@@ -141,26 +143,30 @@ svg {
   inset: 0;
   overflow: hidden;
   background:
-    radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.96) 0 5%, transparent 16%),
-    linear-gradient(128deg, #bfe7ff 0%, #8cb6e7 26%, #3d6aa5 58%, #132848 100%);
+    radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.86) 0 4%, transparent 17%),
+    radial-gradient(circle at 78% 8%, rgba(255, 255, 255, 0.52), transparent 24%),
+    linear-gradient(128deg, #eceff2 0%, #b7bdc4 28%, #747b84 62%, #30343a 100%);
 }
 
 [data-theme="dark"] .landscape-background {
   background:
-    radial-gradient(circle at 27% 20%, rgba(194, 218, 255, 0.28) 0 5%, transparent 18%),
-    linear-gradient(128deg, #263f67 0%, #142b4d 38%, #0a1427 72%, #050914 100%);
+    radial-gradient(circle at 27% 20%, rgba(255, 255, 255, 0.2) 0 5%, transparent 18%),
+    radial-gradient(circle at 75% 7%, rgba(255, 255, 255, 0.14), transparent 25%),
+    linear-gradient(128deg, #4b4f57 0%, #25272b 34%, #111113 72%, #050505 100%);
 }
 
 .landscape-background::before {
   content: "";
   position: absolute;
-  inset: -16% -8% auto -8%;
-  height: 70%;
+  inset: 0;
+  height: 100%;
   background:
-    radial-gradient(circle at 58% 36%, rgba(255, 255, 255, 0.44), transparent 21%),
-    radial-gradient(circle at 18% 56%, rgba(80, 161, 255, 0.42), transparent 28%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent);
-  filter: blur(10px);
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    radial-gradient(circle at 58% 34%, rgba(255, 255, 255, 0.34), transparent 22%),
+    radial-gradient(circle at 18% 56%, rgba(240, 241, 243, 0.3), transparent 28%);
+  background-size: 72px 72px, 72px 72px, auto, auto;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 78%);
 }
 
 .landscape-background::after {
@@ -169,11 +175,11 @@ svg {
   inset: auto -8% -13% -8%;
   height: 50%;
   background:
-    linear-gradient(145deg, transparent 0 21%, rgba(229, 245, 255, 0.88) 21% 30%, transparent 30%),
-    linear-gradient(215deg, transparent 0 24%, rgba(210, 231, 255, 0.88) 24% 34%, transparent 34%),
-    linear-gradient(155deg, transparent 0 35%, rgba(25, 58, 94, 0.88) 35% 56%, transparent 56%),
-    linear-gradient(205deg, transparent 0 28%, rgba(10, 35, 68, 0.82) 28% 56%, transparent 56%),
-    linear-gradient(180deg, transparent 0%, rgba(11, 27, 50, 0.82) 56%, rgba(7, 18, 34, 0.94) 100%);
+    linear-gradient(145deg, transparent 0 21%, rgba(246, 247, 248, 0.9) 21% 30%, transparent 30%),
+    linear-gradient(215deg, transparent 0 24%, rgba(216, 220, 224, 0.82) 24% 34%, transparent 34%),
+    linear-gradient(155deg, transparent 0 35%, rgba(61, 65, 71, 0.8) 35% 56%, transparent 56%),
+    linear-gradient(205deg, transparent 0 28%, rgba(31, 33, 37, 0.78) 28% 56%, transparent 56%),
+    linear-gradient(180deg, transparent 0%, rgba(35, 38, 43, 0.82) 56%, rgba(18, 20, 23, 0.94) 100%);
   clip-path: polygon(0 58%, 12% 38%, 24% 48%, 34% 24%, 43% 45%, 57% 10%, 67% 42%, 78% 28%, 91% 50%, 100% 34%, 100% 100%, 0 100%);
 }
 
@@ -189,7 +195,7 @@ svg {
   left: 42%;
   top: 8%;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.22);
   filter: blur(38px);
 }
 
@@ -199,7 +205,7 @@ svg {
   right: -8%;
   top: 8%;
   border-radius: 999px;
-  background: rgba(78, 138, 214, 0.34);
+  background: rgba(255, 255, 255, 0.18);
   filter: blur(54px);
 }
 
@@ -208,7 +214,7 @@ svg {
   right: -6%;
   bottom: 10%;
   height: 36%;
-  background: rgba(33, 68, 108, 0.46);
+  background: rgba(58, 62, 68, 0.44);
   clip-path: polygon(0 70%, 11% 43%, 20% 53%, 33% 28%, 44% 58%, 57% 31%, 67% 56%, 78% 36%, 90% 60%, 100% 41%, 100% 100%, 0 100%);
   filter: blur(3px);
 }
@@ -218,12 +224,12 @@ svg {
   right: -5%;
   bottom: -2%;
   height: 45%;
-  background: linear-gradient(180deg, rgba(19, 45, 77, 0.84), rgba(8, 23, 43, 0.94));
+  background: linear-gradient(180deg, rgba(55, 59, 65, 0.82), rgba(20, 22, 25, 0.94));
   clip-path: polygon(0 62%, 10% 50%, 19% 62%, 31% 31%, 42% 58%, 54% 16%, 65% 55%, 75% 36%, 87% 62%, 100% 42%, 100% 100%, 0 100%);
 }
 
 [data-theme="dark"] .mountain-front {
-  background: linear-gradient(180deg, rgba(16, 31, 57, 0.92), rgba(3, 8, 18, 0.98));
+  background: linear-gradient(180deg, rgba(36, 38, 43, 0.92), rgba(5, 5, 6, 0.98));
 }
 
 .app-header,
@@ -294,10 +300,10 @@ svg {
   display: grid;
   place-items: center;
   border-radius: 999px;
-  color: #ffffff;
+  color: var(--primary-fg);
   background: var(--primary);
   border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow: 0 12px 28px rgba(33, 91, 174, 0.32);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
   font-size: 14px;
   font-weight: 700;
 }
@@ -323,7 +329,7 @@ svg {
   padding: 18px 16px 22px;
   border-top-right-radius: 28px;
   border-right: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.13);
+  background: rgba(39, 39, 42, 0.18);
   box-shadow: var(--shadow);
   backdrop-filter: blur(22px);
 }
@@ -439,7 +445,8 @@ svg {
 
 .text-button[data-variant="primary"] {
   background: var(--primary);
-  box-shadow: 0 12px 28px rgba(31, 110, 241, 0.3);
+  color: var(--primary-fg);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 
 .text-button[data-variant="primary"]:hover {
@@ -503,7 +510,8 @@ svg {
   width: 56px;
   height: 56px;
   background: var(--primary);
-  box-shadow: 0 16px 34px rgba(31, 110, 241, 0.34);
+  color: var(--primary-fg);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.24);
 }
 
 .quick-add-button:hover {
@@ -574,6 +582,7 @@ svg {
 
 .mini-day[data-active="true"] {
   background: var(--primary);
+  color: var(--primary-fg);
   font-weight: 700;
 }
 
@@ -665,6 +674,7 @@ svg {
 
 .week-day-head[data-active="true"] strong {
   background: var(--primary);
+  color: var(--primary-fg);
 }
 
 .week-body {
@@ -705,7 +715,7 @@ svg {
   border: 0;
   border-radius: 7px;
   padding: 8px 9px;
-  color: #ffffff;
+  color: var(--event-fg);
   text-align: left;
   background: var(--event-color);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
@@ -721,7 +731,7 @@ svg {
 .event-card strong {
   display: block;
   overflow: hidden;
-  color: #ffffff;
+  color: var(--event-fg);
   font-size: 12px;
   line-height: 1.25;
   font-weight: 700;
@@ -732,49 +742,69 @@ svg {
 .event-card span {
   display: block;
   margin-top: 4px;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--event-muted);
   font-size: 10px;
   line-height: 1.2;
 }
 
 [data-tone="blue"] {
-  --event-color: #3b82f6;
+  --event-color: #1f2937;
+  --event-fg: #ffffff;
+  --event-muted: rgba(255, 255, 255, 0.76);
 }
 
 [data-tone="green"] {
-  --event-color: #22c55e;
+  --event-color: #374151;
+  --event-fg: #ffffff;
+  --event-muted: rgba(255, 255, 255, 0.76);
 }
 
 [data-tone="purple"] {
-  --event-color: #a855f7;
+  --event-color: #4b5563;
+  --event-fg: #ffffff;
+  --event-muted: rgba(255, 255, 255, 0.76);
 }
 
 [data-tone="yellow"] {
-  --event-color: #eab308;
+  --event-color: #52525b;
+  --event-fg: #ffffff;
+  --event-muted: rgba(255, 255, 255, 0.76);
 }
 
 [data-tone="indigo"] {
-  --event-color: #6366f1;
+  --event-color: #3f3f46;
+  --event-fg: #ffffff;
+  --event-muted: rgba(255, 255, 255, 0.76);
 }
 
 [data-tone="pink"] {
-  --event-color: #ec4899;
+  --event-color: #27272a;
+  --event-fg: #ffffff;
+  --event-muted: rgba(255, 255, 255, 0.76);
 }
 
 [data-tone="teal"] {
-  --event-color: #14b8a6;
+  --event-color: #44403c;
+  --event-fg: #ffffff;
+  --event-muted: rgba(255, 255, 255, 0.76);
 }
 
 [data-tone="cyan"] {
-  --event-color: #06b6d4;
+  --event-color: #334155;
+  --event-fg: #ffffff;
+  --event-muted: rgba(255, 255, 255, 0.76);
 }
 
 [data-tone="red"] {
-  --event-color: #f87171;
+  --event-color: #57534e;
+  --event-fg: #ffffff;
+  --event-muted: rgba(255, 255, 255, 0.76);
 }
 
 [data-tone="orange"] {
-  --event-color: #fb923c;
+  --event-color: #404040;
+  --event-fg: #ffffff;
+  --event-muted: rgba(255, 255, 255, 0.76);
 }
 
 .assistant-popup {
@@ -787,7 +817,7 @@ svg {
   border-radius: 22px;
   color: #ffffff;
   background:
-    linear-gradient(135deg, rgba(83, 154, 255, 0.34), rgba(48, 112, 220, 0.24)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(28, 28, 31, 0.22)),
     rgba(255, 255, 255, 0.12);
   animation: assistantIn 420ms ease forwards;
 }
@@ -806,7 +836,7 @@ svg {
 }
 
 .assistant-copy svg {
-  color: #bfdbfe;
+  color: rgba(255, 255, 255, 0.82);
   margin-top: 2px;
 }
 
