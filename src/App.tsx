@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Bell,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Check,
   Clock,
+  FileText,
   Languages,
   MapPin,
   Menu,
@@ -12,6 +15,7 @@ import {
   Plus,
   Search,
   Settings,
+  SlidersHorizontal,
   Sparkles,
   Sun,
   Users,
@@ -29,6 +33,7 @@ import {
 type Locale = 'ja' | 'en';
 type ThemePreference = 'light' | 'dark' | 'system';
 type ViewMode = 'day' | 'week' | 'month';
+type SheetKind = 'menu' | 'create' | 'search' | 'settings' | 'today' | 'profile';
 type EventTone =
   | 'blue'
   | 'green'
@@ -76,6 +81,71 @@ const copy = {
       focusNote: '午後のレビューが連続しています',
       next: '次の予定',
       assistant: 'Focus assist',
+    },
+    sheets: {
+      common: {
+        close: '閉じる',
+        cancel: 'キャンセル',
+        save: '保存',
+        open: '開く',
+      },
+      menu: {
+        title: 'ワークスペース',
+        subtitle: '予定、チーム、空き時間を切り替えます',
+        items: ['カレンダー', 'チーム予定', '空き時間', '分析'],
+        section: 'クイック操作',
+        actions: ['共有リンクを作成', '外部カレンダーを同期', '通知ルールを確認'],
+      },
+      create: {
+        title: '予定を作成',
+        subtitle: '業務予定の下書きを作成します',
+        eventTitle: '予定名',
+        eventTitleValue: '四半期レビュー',
+        calendar: 'カレンダー',
+        date: '日付',
+        time: '時間',
+        guests: '参加者',
+        room: '場所',
+        notes: 'メモ',
+        notesValue: '資料確認と次のアクション整理。',
+        templates: 'テンプレート',
+        templateItems: ['会議', 'レビュー', '1on1'],
+      },
+      search: {
+        title: '予定を検索',
+        subtitle: '予定名、場所、参加者で絞り込み',
+        placeholder: '検索キーワード',
+        results: '検索結果',
+        empty: '一致する予定はありません',
+      },
+      settings: {
+        title: '表示設定',
+        subtitle: '作業スタイルに合わせてカレンダーを調整します',
+        appearance: '外観',
+        density: '密度',
+        densityItems: ['標準', 'コンパクト', '広め'],
+        notifications: '通知',
+        notificationItems: ['会議10分前', '日次サマリー', '集中時間を保護'],
+        timezone: 'タイムゾーン',
+        workHours: '勤務時間',
+      },
+      today: {
+        title: '今日の運用ビュー',
+        subtitle: '3月5日の予定と集中時間',
+        workload: '会議時間',
+        available: '空き時間',
+        conflict: '注意',
+        conflictValue: '14:00台にレビューが重なっています',
+        timeline: 'タイムライン',
+      },
+      profile: {
+        title: 'アカウント',
+        subtitle: '個人設定と同期状況',
+        role: 'Workspace Admin',
+        plan: 'Business',
+        sync: 'Google Calendar 同期済み',
+        status: '通知は有効です',
+      },
     },
     myCalendars: 'マイカレンダー',
     views: {
@@ -126,6 +196,71 @@ const copy = {
       focusNote: 'Reviews are clustered this afternoon',
       next: 'Up next',
       assistant: 'Focus assist',
+    },
+    sheets: {
+      common: {
+        close: 'Close',
+        cancel: 'Cancel',
+        save: 'Save',
+        open: 'Open',
+      },
+      menu: {
+        title: 'Workspace',
+        subtitle: 'Switch between schedule, teams, and availability',
+        items: ['Calendar', 'Team schedule', 'Availability', 'Insights'],
+        section: 'Quick actions',
+        actions: ['Create share link', 'Sync external calendar', 'Review notification rules'],
+      },
+      create: {
+        title: 'Create event',
+        subtitle: 'Draft a business calendar event',
+        eventTitle: 'Event title',
+        eventTitleValue: 'Quarterly review',
+        calendar: 'Calendar',
+        date: 'Date',
+        time: 'Time',
+        guests: 'Guests',
+        room: 'Location',
+        notes: 'Notes',
+        notesValue: 'Review materials and align next actions.',
+        templates: 'Templates',
+        templateItems: ['Meeting', 'Review', '1:1'],
+      },
+      search: {
+        title: 'Search events',
+        subtitle: 'Filter by title, location, or attendees',
+        placeholder: 'Search keyword',
+        results: 'Results',
+        empty: 'No matching events',
+      },
+      settings: {
+        title: 'Display settings',
+        subtitle: 'Tune the calendar for your working style',
+        appearance: 'Appearance',
+        density: 'Density',
+        densityItems: ['Default', 'Compact', 'Spacious'],
+        notifications: 'Notifications',
+        notificationItems: ['10 min before meetings', 'Daily summary', 'Protect focus time'],
+        timezone: 'Timezone',
+        workHours: 'Working hours',
+      },
+      today: {
+        title: 'Today operations',
+        subtitle: 'March 5 schedule and focus time',
+        workload: 'Meeting load',
+        available: 'Available',
+        conflict: 'Watch',
+        conflictValue: 'Reviews are stacked around 2 PM',
+        timeline: 'Timeline',
+      },
+      profile: {
+        title: 'Account',
+        subtitle: 'Personal settings and sync status',
+        role: 'Workspace Admin',
+        plan: 'Business',
+        sync: 'Google Calendar synced',
+        status: 'Notifications enabled',
+      },
     },
     myCalendars: 'My calendars',
     views: {
@@ -416,10 +551,30 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentView, setCurrentView] = useState<ViewMode>('week');
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [activeSheet, setActiveSheet] = useState<SheetKind | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const text = copy[locale];
   const resolvedTheme = useMemo(() => resolveTheme(themePreference), [themePreference]);
   const todaysEvents = useMemo(() => events.filter((event) => event.day === 3), []);
+  const searchResults = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return events.slice(0, 6);
+    return events.filter((event) => {
+      const values = [
+        event.title[locale],
+        event.location[locale],
+        event.description[locale],
+        event.organizer[locale],
+        ...event.attendees[locale],
+      ];
+      return values.some((value) => value.toLowerCase().includes(query));
+    });
+  }, [locale, searchTerm]);
+  const eventsByDay = useMemo(
+    () => weekDates.map((date, index) => ({ date, count: events.filter((event) => event.day === index + 1).length })),
+    [],
+  );
 
   useEffect(() => {
     setIsLoaded(true);
@@ -450,6 +605,22 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [showAssistant, text.assistant.prompt]);
 
+  useEffect(() => {
+    if (!activeSheet && !selectedEvent) return;
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      if (activeSheet) {
+        setActiveSheet(null);
+        return;
+      }
+      setSelectedEvent(null);
+    }
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [activeSheet, selectedEvent]);
+
   function toggleLocale() {
     setLocale((current) => (current === 'ja' ? 'en' : 'ja'));
   }
@@ -458,13 +629,21 @@ export default function App() {
     setThemePreference((current) => (resolveTheme(current) === 'dark' ? 'light' : 'dark'));
   }
 
+  function openSheet(sheet: SheetKind) {
+    setActiveSheet(sheet);
+  }
+
+  function closeSheet() {
+    setActiveSheet(null);
+  }
+
   return (
     <AppSurface data-loaded={isLoaded ? 'true' : 'false'}>
       <div data-melius-ui-id="app-background" data-melius-ui-role="media" className="app-background" />
 
       <header data-melius-ui-id="app-header" data-melius-ui-role="navigation" className="app-header">
         <div className="brand-cluster">
-          <IconButton dataId="menu-button" label="Menu">
+          <IconButton dataId="menu-button" label="Menu" onClick={() => openSheet('menu')}>
             <Menu size={22} />
           </IconButton>
           <div className="brand-copy">
@@ -483,6 +662,12 @@ export default function App() {
             label={text.search}
             placeholder={text.search}
             icon={<Search size={16} />}
+            value={searchTerm}
+            onFocus={() => openSheet('search')}
+            onChange={(event) => {
+              setSearchTerm(event.currentTarget.value);
+              openSheet('search');
+            }}
           />
           <TextButton dataId="locale-toggle" onClick={toggleLocale}>
             <Languages size={16} />
@@ -495,19 +680,30 @@ export default function App() {
           >
             {resolvedTheme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
           </IconButton>
-          <IconButton dataId="settings-button" label="Settings">
+          <IconButton dataId="settings-button" label="Settings" onClick={() => openSheet('settings')}>
             <Settings size={21} />
           </IconButton>
-          <div data-melius-ui-id="user-avatar" data-melius-ui-role="avatar" className="user-avatar">
+          <button
+            type="button"
+            data-melius-ui-id="user-avatar"
+            data-melius-ui-role="avatar"
+            className="user-avatar"
+            onClick={() => openSheet('profile')}
+          >
             U
-          </div>
+          </button>
         </div>
       </header>
 
       <main data-melius-ui-id="calendar-shell" className="calendar-shell">
         <aside data-melius-ui-id="calendar-sidebar" data-melius-ui-role="sidebar" className="calendar-sidebar">
           <div className="sidebar-main">
-            <TextButton dataId="create-event-button" roleName="primary-action" variant="primary">
+            <TextButton
+              dataId="create-event-button"
+              roleName="primary-action"
+              variant="primary"
+              onClick={() => openSheet('create')}
+            >
               <Plus size={18} />
               {text.create}
             </TextButton>
@@ -563,7 +759,12 @@ export default function App() {
             </GlassPanel>
           </div>
 
-          <IconButton dataId="quick-add-event-button" label={text.quickAdd} className="quick-add-button">
+          <IconButton
+            dataId="quick-add-event-button"
+            label={text.quickAdd}
+            className="quick-add-button"
+            onClick={() => openSheet('create')}
+          >
             <Plus size={24} />
           </IconButton>
         </aside>
@@ -571,7 +772,7 @@ export default function App() {
         <section data-melius-ui-id="calendar-workspace" data-melius-ui-role="workspace" className="calendar-workspace">
           <div data-melius-ui-id="calendar-toolbar" data-melius-ui-role="toolbar" className="calendar-toolbar">
             <div className="toolbar-left">
-              <TextButton dataId="today-button" variant="primary">
+              <TextButton dataId="today-button" variant="primary" onClick={() => openSheet('today')}>
                 {text.today}
               </TextButton>
               <div className="toolbar-nav">
@@ -749,6 +950,310 @@ export default function App() {
           ) : null}
         </aside>
       </main>
+
+      {activeSheet ? (
+        <div data-melius-ui-id="action-sheet-overlay" data-melius-ui-role="dialog" className="sheet-overlay">
+          <section
+            data-melius-ui-id={`action-sheet-${activeSheet}`}
+            data-melius-ui-role="dialog-content"
+            data-size={activeSheet === 'create' || activeSheet === 'search' ? 'wide' : 'default'}
+            className="action-sheet"
+          >
+            <div className="sheet-head">
+              <div>
+                <p>{text.sheets[activeSheet].subtitle}</p>
+                <h2>{text.sheets[activeSheet].title}</h2>
+              </div>
+              <IconButton dataId={`${activeSheet}-sheet-close-button`} label={text.sheets.common.close} onClick={closeSheet}>
+                <X size={18} />
+              </IconButton>
+            </div>
+
+            <div className="sheet-body">
+              {activeSheet === 'menu' ? (
+                <>
+                  <div data-melius-ui-id="workspace-menu-list" data-melius-ui-role="navigation" className="sheet-nav-list">
+                    {text.sheets.menu.items.map((item, index) => (
+                      <button
+                        key={item}
+                        type="button"
+                        data-melius-ui-id={`workspace-menu-item-${index + 1}`}
+                        className="sheet-nav-item"
+                        onClick={() => {
+                          if (index === 0) closeSheet();
+                          if (index === 1 || index === 3) openSheet('today');
+                          if (index === 2) openSheet('settings');
+                        }}
+                      >
+                        <span>{item}</span>
+                        <ChevronRight size={16} />
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="sheet-section">
+                    <h3>{text.sheets.menu.section}</h3>
+                    <div className="action-list">
+                      {text.sheets.menu.actions.map((action, index) => (
+                        <button
+                          key={action}
+                          type="button"
+                          data-melius-ui-id={`workspace-quick-action-${index + 1}`}
+                          className="action-row"
+                          onClick={() => openSheet(index === 0 ? 'profile' : 'settings')}
+                        >
+                          <FileText size={16} />
+                          <span>{action}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              {activeSheet === 'create' ? (
+                <>
+                  <div data-melius-ui-id="event-create-form" data-melius-ui-role="form" className="event-form-grid">
+                    <label className="form-field form-field-wide">
+                      <span>{text.sheets.create.eventTitle}</span>
+                      <input defaultValue={text.sheets.create.eventTitleValue} />
+                    </label>
+                    <label className="form-field">
+                      <span>{text.sheets.create.calendar}</span>
+                      <select defaultValue={text.calendars[1]}>
+                        {text.calendars.map((calendar) => (
+                          <option key={calendar}>{calendar}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="form-field">
+                      <span>{text.sheets.create.date}</span>
+                      <input defaultValue={locale === 'ja' ? '2025年3月5日' : 'March 5, 2025'} />
+                    </label>
+                    <label className="form-field">
+                      <span>{text.sheets.create.time}</span>
+                      <input defaultValue="15:30 - 16:00" />
+                    </label>
+                    <label className="form-field">
+                      <span>{text.sheets.create.room}</span>
+                      <input defaultValue={locale === 'ja' ? '会議室 B' : 'Conference Room B'} />
+                    </label>
+                    <label className="form-field form-field-wide">
+                      <span>{text.sheets.create.guests}</span>
+                      <input defaultValue={locale === 'ja' ? 'Finance Team, Product Team' : 'Finance Team, Product Team'} />
+                    </label>
+                    <label className="form-field form-field-wide">
+                      <span>{text.sheets.create.notes}</span>
+                      <textarea defaultValue={text.sheets.create.notesValue} />
+                    </label>
+                  </div>
+
+                  <div className="sheet-section">
+                    <h3>{text.sheets.create.templates}</h3>
+                    <div className="template-row">
+                      {text.sheets.create.templateItems.map((template, index) => (
+                        <button
+                          key={template}
+                          type="button"
+                          data-melius-ui-id={`event-template-${index + 1}`}
+                          className="template-pill"
+                        >
+                          {template}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="sheet-footer">
+                    <TextButton dataId="create-event-cancel-button" onClick={closeSheet}>
+                      {text.sheets.common.cancel}
+                    </TextButton>
+                    <TextButton dataId="create-event-save-button" variant="primary" onClick={closeSheet}>
+                      {text.sheets.common.save}
+                    </TextButton>
+                  </div>
+                </>
+              ) : null}
+
+              {activeSheet === 'search' ? (
+                <>
+                  <label data-melius-ui-id="sheet-search-input" className="sheet-search">
+                    <Search size={16} />
+                    <input
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.currentTarget.value)}
+                      placeholder={text.sheets.search.placeholder}
+                    />
+                  </label>
+
+                  <div className="sheet-section">
+                    <h3>{text.sheets.search.results}</h3>
+                    <div data-melius-ui-id="sheet-search-results" data-melius-ui-role="list" className="search-result-list">
+                      {searchResults.length > 0 ? (
+                        searchResults.map((event) => (
+                          <button
+                            key={event.id}
+                            type="button"
+                            data-melius-ui-id={`search-result-${event.id}`}
+                            data-tone={event.tone}
+                            className="search-result"
+                            onClick={() => {
+                              setSelectedEvent(event);
+                              closeSheet();
+                            }}
+                          >
+                            <span>{event.startTime} - {event.endTime}</span>
+                            <strong>{event.title[locale]}</strong>
+                            <small>{event.location[locale]}</small>
+                          </button>
+                        ))
+                      ) : (
+                        <div data-melius-ui-id="search-empty-state" className="empty-state">
+                          {text.sheets.search.empty}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              {activeSheet === 'settings' ? (
+                <>
+                  <div className="settings-stack">
+                    <div className="setting-card">
+                      <div>
+                        <SlidersHorizontal size={17} />
+                        <span>{text.sheets.settings.appearance}</span>
+                      </div>
+                      <div className="setting-actions">
+                        <button type="button" onClick={toggleTheme}>
+                          {resolvedTheme === 'dark' ? text.theme.light : text.theme.dark}
+                        </button>
+                        <button type="button" onClick={toggleLocale}>
+                          {text.localeToggle}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="setting-card setting-card-vertical">
+                      <div>
+                        <SlidersHorizontal size={17} />
+                        <span>{text.sheets.settings.density}</span>
+                      </div>
+                      <div className="setting-segments">
+                        {text.sheets.settings.densityItems.map((item, index) => (
+                          <button key={item} type="button" data-active={index === 0 ? 'true' : 'false'}>
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="setting-card setting-card-vertical">
+                      <div>
+                        <Bell size={17} />
+                        <span>{text.sheets.settings.notifications}</span>
+                      </div>
+                      <div className="check-list">
+                        {text.sheets.settings.notificationItems.map((item) => (
+                          <button key={item} type="button" className="check-row">
+                            <Check size={15} />
+                            <span>{item}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="setting-grid">
+                      <div>
+                        <span>{text.sheets.settings.timezone}</span>
+                        <strong>Asia/Tokyo</strong>
+                      </div>
+                      <div>
+                        <span>{text.sheets.settings.workHours}</span>
+                        <strong>09:00 - 18:00</strong>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              {activeSheet === 'today' ? (
+                <>
+                  <div data-melius-ui-id="today-operations-metrics" className="today-metrics">
+                    <div>
+                      <span>{text.sheets.today.workload}</span>
+                      <strong>3.0h</strong>
+                    </div>
+                    <div>
+                      <span>{text.sheets.today.available}</span>
+                      <strong>2.5h</strong>
+                    </div>
+                    <div>
+                      <span>{text.sheets.today.conflict}</span>
+                      <strong>1</strong>
+                    </div>
+                  </div>
+                  <div className="focus-note">
+                    <span>{text.sheets.today.conflict}</span>
+                    <p>{text.sheets.today.conflictValue}</p>
+                  </div>
+                  <div className="sheet-section">
+                    <h3>{text.sheets.today.timeline}</h3>
+                    <div className="today-timeline">
+                      {todaysEvents.map((event) => (
+                        <button
+                          key={event.id}
+                          type="button"
+                          data-melius-ui-id={`today-timeline-${event.id}`}
+                          data-tone={event.tone}
+                          className="timeline-row"
+                          onClick={() => {
+                            setSelectedEvent(event);
+                            closeSheet();
+                          }}
+                        >
+                          <span>{event.startTime}</span>
+                          <strong>{event.title[locale]}</strong>
+                          <small>{event.endTime}</small>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              {activeSheet === 'profile' ? (
+                <>
+                  <div data-melius-ui-id="profile-summary" className="profile-summary">
+                    <div className="profile-avatar">U</div>
+                    <div>
+                      <h3>United Calendar</h3>
+                      <p>{text.sheets.profile.role}</p>
+                    </div>
+                  </div>
+                  <div className="setting-grid">
+                    <div>
+                      <span>{text.sheets.profile.plan}</span>
+                      <strong>Business</strong>
+                    </div>
+                    <div>
+                      <span>{text.sheets.profile.sync}</span>
+                      <strong>Live</strong>
+                    </div>
+                  </div>
+                  <div className="action-list">
+                    <button type="button" className="action-row" onClick={() => openSheet('settings')}>
+                      <Settings size={16} />
+                      <span>{text.sheets.profile.status}</span>
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {selectedEvent ? (
         <div data-melius-ui-id="event-detail-overlay" data-melius-ui-role="dialog" className="modal-overlay">
