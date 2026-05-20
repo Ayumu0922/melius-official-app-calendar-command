@@ -66,6 +66,17 @@ const copy = {
     month: '2025年3月',
     currentDate: '3月5日',
     today: '今日',
+    workspaceLabel: '業務カレンダー',
+    agenda: {
+      title: '今日の予定',
+      subtitle: '3月5日 水曜日',
+      week: '今週',
+      events: '予定',
+      focus: 'フォーカス',
+      focusNote: '午後のレビューが連続しています',
+      next: '次の予定',
+      assistant: 'Focus assist',
+    },
     myCalendars: 'マイカレンダー',
     views: {
       day: '日',
@@ -105,6 +116,17 @@ const copy = {
     month: 'March 2025',
     currentDate: 'March 5',
     today: 'Today',
+    workspaceLabel: 'Business calendar',
+    agenda: {
+      title: "Today's schedule",
+      subtitle: 'Wednesday, March 5',
+      week: 'This week',
+      events: 'Events',
+      focus: 'Focus',
+      focusNote: 'Reviews are clustered this afternoon',
+      next: 'Up next',
+      assistant: 'Focus assist',
+    },
     myCalendars: 'My calendars',
     views: {
       day: 'Day',
@@ -397,6 +419,7 @@ export default function App() {
 
   const text = copy[locale];
   const resolvedTheme = useMemo(() => resolveTheme(themePreference), [themePreference]);
+  const todaysEvents = useMemo(() => events.filter((event) => event.day === 3), []);
 
   useEffect(() => {
     setIsLoaded(true);
@@ -422,7 +445,7 @@ export default function App() {
       setTypedText((current) => current + sentence.charAt(index));
       index += 1;
       if (index >= sentence.length) window.clearInterval(timer);
-    }, 28);
+    }, 8);
 
     return () => window.clearInterval(timer);
   }, [showAssistant, text.assistant.prompt]);
@@ -437,20 +460,20 @@ export default function App() {
 
   return (
     <AppSurface data-loaded={isLoaded ? 'true' : 'false'}>
-      <div data-melius-ui-id="landscape-background" data-melius-ui-role="media" className="landscape-background">
-        <span className="sky-glow sky-glow-a" />
-        <span className="sky-glow sky-glow-b" />
-        <span className="mountain mountain-back" />
-        <span className="mountain mountain-front" />
-      </div>
+      <div data-melius-ui-id="app-background" data-melius-ui-role="media" className="app-background" />
 
       <header data-melius-ui-id="app-header" data-melius-ui-role="navigation" className="app-header">
         <div className="brand-cluster">
           <IconButton dataId="menu-button" label="Menu">
             <Menu size={22} />
           </IconButton>
-          <div data-melius-ui-id="product-name" className="product-name">
-            {text.appName}
+          <div className="brand-copy">
+            <div data-melius-ui-id="product-name" className="product-name">
+              {text.appName}
+            </div>
+            <div data-melius-ui-id="workspace-label" className="workspace-label">
+              {text.workspaceLabel}
+            </div>
           </div>
         </div>
 
@@ -559,7 +582,10 @@ export default function App() {
                   <ChevronRight size={18} />
                 </IconButton>
               </div>
-              <h1 data-melius-ui-id="current-date-label">{text.currentDate}</h1>
+              <div className="date-heading">
+                <span>{text.month}</span>
+                <h1 data-melius-ui-id="current-date-label">{text.currentDate}</h1>
+              </div>
             </div>
 
             <div data-melius-ui-id="view-mode-control" data-melius-ui-role="segmented-control" className="view-segments">
@@ -638,33 +664,91 @@ export default function App() {
             </div>
           </GlassPanel>
         </section>
-      </main>
 
-      {showAssistant ? (
-        <GlassPanel dataId="assistant-popup" roleName="assistant" className="assistant-popup">
-          <IconButton dataId="assistant-close-button" label="Close assistant" onClick={() => setShowAssistant(false)}>
-            <X size={18} />
-          </IconButton>
-          <div className="assistant-copy">
-            <Sparkles size={19} />
-            <p>{typedText}</p>
+        <aside data-melius-ui-id="agenda-panel" data-melius-ui-role="inspector" className="agenda-panel">
+          <div className="agenda-heading">
+            <div>
+              <p>{text.agenda.subtitle}</p>
+              <h2>{text.agenda.title}</h2>
+            </div>
+            <span>{todaysEvents.length}</span>
           </div>
-          <div className="assistant-actions">
-            <TextButton dataId="assistant-accept-button" onClick={() => setIsPlaying(true)}>
-              {text.assistant.yes}
-            </TextButton>
-            <TextButton dataId="assistant-dismiss-button" onClick={() => setShowAssistant(false)}>
-              {text.assistant.no}
-            </TextButton>
+
+          <div data-melius-ui-id="agenda-metrics" className="agenda-metrics">
+            <div>
+              <span>{text.agenda.events}</span>
+              <strong>{todaysEvents.length}</strong>
+            </div>
+            <div>
+              <span>{text.agenda.week}</span>
+              <strong>{events.length}</strong>
+            </div>
+            <div>
+              <span>{text.agenda.focus}</span>
+              <strong>2.5h</strong>
+            </div>
           </div>
-          {isPlaying ? (
-            <TextButton dataId="assistant-pause-button" onClick={() => setIsPlaying(false)} variant="ghost">
-              <Pause size={16} />
-              {text.assistant.pause}
-            </TextButton>
+
+          <div data-melius-ui-id="agenda-focus-note" className="focus-note">
+            <span>{text.agenda.focus}</span>
+            <p>{text.agenda.focusNote}</p>
+          </div>
+
+          <div className="agenda-list-wrap">
+            <h3>{text.agenda.next}</h3>
+            <div data-melius-ui-id="agenda-event-list" data-melius-ui-role="list" className="agenda-list">
+              {todaysEvents.map((event) => (
+                <button
+                  key={event.id}
+                  type="button"
+                  data-melius-ui-id={`agenda-event-${event.id}`}
+                  data-melius-ui-role="calendar-event"
+                  data-tone={event.tone}
+                  className="agenda-event"
+                  onClick={() => setSelectedEvent(event)}
+                >
+                  <span className="agenda-time">
+                    {event.startTime} - {event.endTime}
+                  </span>
+                  <strong>{event.title[locale]}</strong>
+                  <small>{event.location[locale]}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {showAssistant ? (
+            <GlassPanel dataId="assistant-popup" roleName="assistant" className="assistant-popup">
+              <div className="assistant-head">
+                <div>
+                  <Sparkles size={17} />
+                  <span>{text.agenda.assistant}</span>
+                </div>
+                <IconButton dataId="assistant-close-button" label="Close assistant" onClick={() => setShowAssistant(false)}>
+                  <X size={16} />
+                </IconButton>
+              </div>
+              <div className="assistant-copy">
+                <p>{typedText}</p>
+              </div>
+              <div className="assistant-actions">
+                <TextButton dataId="assistant-accept-button" onClick={() => setIsPlaying(true)}>
+                  {text.assistant.yes}
+                </TextButton>
+                <TextButton dataId="assistant-dismiss-button" onClick={() => setShowAssistant(false)}>
+                  {text.assistant.no}
+                </TextButton>
+              </div>
+              {isPlaying ? (
+                <TextButton dataId="assistant-pause-button" onClick={() => setIsPlaying(false)} variant="ghost">
+                  <Pause size={16} />
+                  {text.assistant.pause}
+                </TextButton>
+              ) : null}
+            </GlassPanel>
           ) : null}
-        </GlassPanel>
-      ) : null}
+        </aside>
+      </main>
 
       {selectedEvent ? (
         <div data-melius-ui-id="event-detail-overlay" data-melius-ui-role="dialog" className="modal-overlay">
