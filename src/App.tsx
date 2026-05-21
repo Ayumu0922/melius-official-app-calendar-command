@@ -33,7 +33,7 @@ import {
 type Locale = 'ja' | 'en';
 type ThemePreference = 'light' | 'dark' | 'system';
 type ViewMode = 'day' | 'week' | 'month';
-type SheetKind = 'menu' | 'create' | 'search' | 'settings' | 'today' | 'profile';
+type SheetKind = 'menu' | 'create' | 'settings' | 'today' | 'profile';
 type EventTone =
   | 'blue'
   | 'green'
@@ -57,6 +57,12 @@ interface CalendarEvent {
   location: Record<Locale, string>;
   attendees: Record<Locale, string[]>;
   organizer: Record<Locale, string>;
+}
+
+interface EventPlacement {
+  day: number;
+  startTime: string;
+  endTime: string;
 }
 
 const themeKey = 'melius-official-app-calendar-command-theme';
@@ -536,6 +542,21 @@ function calculateEventStyle(startTime: string, endTime: string) {
   };
 }
 
+function parseTime(time: string) {
+  const [hour, minute] = time.split(':').map(Number);
+  return hour + minute / 60;
+}
+
+function formatTime(value: number) {
+  const hour = Math.floor(value);
+  const minute = Math.round((value - hour) * 60);
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function getEventDuration(event: CalendarEvent) {
+  return parseTime(event.endTime) - parseTime(event.startTime);
+}
+
 function formatHour(hour: number, locale: Locale) {
   if (locale === 'ja') return `${hour}:00`;
   if (hour === 12) return '12 PM';
@@ -553,14 +574,26 @@ export default function App() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [activeSheet, setActiveSheet] = useState<SheetKind | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [eventPlacements, setEventPlacements] = useState<Record<string, EventPlacement>>({});
+  const [draggingEventId, setDraggingEventId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ day: number; hour: number } | null>(null);
 
   const text = copy[locale];
   const resolvedTheme = useMemo(() => resolveTheme(themePreference), [themePreference]);
-  const todaysEvents = useMemo(() => events.filter((event) => event.day === 3), []);
+  const scheduleEvents = useMemo(
+    () =>
+      events.map((event) => {
+        const placement = eventPlacements[event.id];
+        return placement ? { ...event, ...placement } : event;
+      }),
+    [eventPlacements],
+  );
+  const todaysEvents = useMemo(() => scheduleEvents.filter((event) => event.day === 3), [scheduleEvents]);
   const searchResults = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    if (!query) return events.slice(0, 6);
-    return events.filter((event) => {
+    if (!query) return scheduleEvents.slice(0, 6);
+    return scheduleEvents.filter((event) => {
       const values = [
         event.title[locale],
         event.location[locale],
@@ -570,10 +603,10 @@ export default function App() {
       ];
       return values.some((value) => value.toLowerCase().includes(query));
     });
-  }, [locale, searchTerm]);
+  }, [locale, scheduleEvents, searchTerm]);
   const eventsByDay = useMemo(
-    () => weekDates.map((date, index) => ({ date, count: events.filter((event) => event.day === index + 1).length })),
-    [],
+    () => weekDates.map((date, index) => ({ date, count: scheduleEvents.filter((event) => event.day === index + 1).length })),
+    [scheduleEvents],
   );
 
   useEffect(() => {
@@ -606,10 +639,14 @@ export default function App() {
   }, [showAssistant, text.assistant.prompt]);
 
   useEffect(() => {
-    if (!activeSheet && !selectedEvent) return;
+    if (!activeSheet && !selectedEvent && !isSearchOpen) return;
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key !== 'Escape') return;
+      if (isSearchOpen) {
+        setIsSearchOpen(false);
+        return;
+      }
       if (activeSheet) {
         setActiveSheet(null);
         return;
@@ -619,7 +656,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [activeSheet, selectedEvent]);
+  }, [activeSheet, isSearchOpen, selectedEvent]);
 
   function toggleLocale() {
     setLocale((current) => (current === 'ja' ? 'en' : 'ja'));
@@ -635,6 +672,31 @@ export default function App() {
 
   function closeSheet() {
     setActiveSheet(null);
+  }
+
+  function getDropHour(target: HTMLElement, clientY: number) {
+    const rect = target.getBoundingClientRect();
+    const rawHour = 8 + ((clientY - rect.top) / 78);
+    return Math.min(16.5, Math.max(8, Math.round(rawHour * 2) / 2));
+  }
+
+  function handleDropOnDay(day: number, target: HTMLElement, clientY: number) {
+    if (!draggingEventId) return;
+    const event = scheduleEvents.find((item) => item.id === draggingEventId);
+    if (!event) return;
+
+    const duration = getEventDuration(event);
+    const start = Math.min(getDropHour(target, clientY), 17 - duration);
+    setEventPlacements((current) => ({
+      ...current,
+      [event.id]: {
+        day,
+        startTime: formatTime(start),
+        endTime: formatTime(start + duration),
+      },
+    }));
+    setDraggingEventId(null);
+    setDropTarget(null);
   }
 
   return (
@@ -657,18 +719,60 @@ export default function App() {
         </div>
 
         <div className="header-actions">
-          <SearchInput
-            dataId="global-search"
-            label={text.search}
-            placeholder={text.search}
-            icon={<Search size={16} />}
-            value={searchTerm}
-            onFocus={() => openSheet('search')}
-            onChange={(event) => {
-              setSearchTerm(event.currentTarget.value);
-              openSheet('search');
-            }}
-          />
+          <div data-melius-ui-id="search-container" data-melius-ui-role="search" className="search-container">
+            <SearchInput
+              dataId="global-search"
+              label={text.search}
+              placeholder={text.search}
+              icon={<Search size={16} />}
+              value={searchTerm}
+              onFocus={() => setIsSearchOpen(true)}
+              onChange={(event) => {
+                setSearchTerm(event.currentTarget.value);
+                setIsSearchOpen(true);
+              }}
+            />
+            {isSearchOpen ? (
+              <div data-melius-ui-id="search-dropdown" data-melius-ui-role="listbox" className="search-dropdown">
+                <div className="search-dropdown-head">
+                  <span>{text.sheets.search.results}</span>
+                  <button
+                    type="button"
+                    data-melius-ui-id="search-dropdown-close"
+                    onClick={() => setIsSearchOpen(false)}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+                <div className="search-dropdown-list">
+                  {searchResults.length > 0 ? (
+                    searchResults.slice(0, 5).map((event) => (
+                      <button
+                        key={event.id}
+                        type="button"
+                        data-melius-ui-id={`search-dropdown-result-${event.id}`}
+                        data-tone={event.tone}
+                        className="search-dropdown-result"
+                        onMouseDown={(mouseEvent) => mouseEvent.preventDefault()}
+                        onClick={() => {
+                          setSelectedEvent(event);
+                          setIsSearchOpen(false);
+                        }}
+                      >
+                        <span>{event.startTime} - {event.endTime}</span>
+                        <strong>{event.title[locale]}</strong>
+                        <small>{event.location[locale]}</small>
+                      </button>
+                    ))
+                  ) : (
+                    <div data-melius-ui-id="search-dropdown-empty" className="empty-state">
+                      {text.sheets.search.empty}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
           <TextButton dataId="locale-toggle" onClick={toggleLocale}>
             <Languages size={16} />
             {text.localeToggle}
@@ -833,12 +937,36 @@ export default function App() {
                   key={dayIndex}
                   data-melius-ui-id={`calendar-day-column-${dayIndex + 1}`}
                   data-melius-ui-role="calendar-column"
+                  data-drop-target={dropTarget?.day === dayIndex + 1 ? 'true' : 'false'}
                   className="day-column"
+                  onDragOver={(event) => {
+                    if (!draggingEventId) return;
+                    event.preventDefault();
+                    setDropTarget({
+                      day: dayIndex + 1,
+                      hour: getDropHour(event.currentTarget, event.clientY),
+                    });
+                  }}
+                  onDragLeave={(event) => {
+                    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                    setDropTarget(null);
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    handleDropOnDay(dayIndex + 1, event.currentTarget, event.clientY);
+                  }}
                 >
                   {timeSlots.map((time) => (
                     <div key={time} className="time-cell" />
                   ))}
-                  {events
+                  {dropTarget?.day === dayIndex + 1 ? (
+                    <div
+                      data-melius-ui-id={`drop-marker-day-${dayIndex + 1}`}
+                      className="drop-marker"
+                      style={{ top: `${(dropTarget.hour - 8) * 78}px` }}
+                    />
+                  ) : null}
+                  {scheduleEvents
                     .filter((event) => event.day === dayIndex + 1)
                     .map((event) => {
                       const eventStyle = calculateEventStyle(event.startTime, event.endTime);
@@ -849,8 +977,20 @@ export default function App() {
                           data-melius-ui-id={`event-card-${event.id}`}
                           data-melius-ui-role="calendar-event"
                           data-tone={event.tone}
+                          data-dragging={draggingEventId === event.id ? 'true' : 'false'}
                           className="event-card"
                           style={eventStyle}
+                          draggable
+                          aria-grabbed={draggingEventId === event.id}
+                          onDragStart={(dragEvent) => {
+                            dragEvent.dataTransfer.effectAllowed = 'move';
+                            dragEvent.dataTransfer.setData('text/plain', event.id);
+                            setDraggingEventId(event.id);
+                          }}
+                          onDragEnd={() => {
+                            setDraggingEventId(null);
+                            setDropTarget(null);
+                          }}
                           onClick={() => setSelectedEvent(event)}
                         >
                           <strong>{event.title[locale]}</strong>
@@ -882,7 +1022,7 @@ export default function App() {
             </div>
             <div>
               <span>{text.agenda.week}</span>
-              <strong>{events.length}</strong>
+              <strong>{scheduleEvents.length}</strong>
             </div>
             <div>
               <span>{text.agenda.focus}</span>
@@ -956,7 +1096,7 @@ export default function App() {
           <section
             data-melius-ui-id={`action-sheet-${activeSheet}`}
             data-melius-ui-role="dialog-content"
-            data-size={activeSheet === 'create' || activeSheet === 'search' ? 'wide' : 'default'}
+            data-size={activeSheet === 'create' ? 'wide' : 'default'}
             className="action-sheet"
           >
             <div className="sheet-head">
@@ -1071,48 +1211,6 @@ export default function App() {
                     <TextButton dataId="create-event-save-button" variant="primary" onClick={closeSheet}>
                       {text.sheets.common.save}
                     </TextButton>
-                  </div>
-                </>
-              ) : null}
-
-              {activeSheet === 'search' ? (
-                <>
-                  <label data-melius-ui-id="sheet-search-input" className="sheet-search">
-                    <Search size={16} />
-                    <input
-                      value={searchTerm}
-                      onChange={(event) => setSearchTerm(event.currentTarget.value)}
-                      placeholder={text.sheets.search.placeholder}
-                    />
-                  </label>
-
-                  <div className="sheet-section">
-                    <h3>{text.sheets.search.results}</h3>
-                    <div data-melius-ui-id="sheet-search-results" data-melius-ui-role="list" className="search-result-list">
-                      {searchResults.length > 0 ? (
-                        searchResults.map((event) => (
-                          <button
-                            key={event.id}
-                            type="button"
-                            data-melius-ui-id={`search-result-${event.id}`}
-                            data-tone={event.tone}
-                            className="search-result"
-                            onClick={() => {
-                              setSelectedEvent(event);
-                              closeSheet();
-                            }}
-                          >
-                            <span>{event.startTime} - {event.endTime}</span>
-                            <strong>{event.title[locale]}</strong>
-                            <small>{event.location[locale]}</small>
-                          </button>
-                        ))
-                      ) : (
-                        <div data-melius-ui-id="search-empty-state" className="empty-state">
-                          {text.sheets.search.empty}
-                        </div>
-                      )}
-                    </div>
                   </div>
                 </>
               ) : null}
