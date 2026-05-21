@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import {
   Bell,
   CalendarDays,
@@ -63,6 +63,12 @@ interface EventPlacement {
   day: number;
   startTime: string;
   endTime: string;
+}
+
+interface CalendarMonth {
+  year: number;
+  month: number;
+  activeDate: number;
 }
 
 const themeKey = 'melius-official-app-calendar-command-theme';
@@ -484,9 +490,13 @@ const events: CalendarEvent[] = [
   },
 ];
 
-const weekDates = [3, 4, 5, 6, 7, 8, 9];
+const calendarMonths: CalendarMonth[] = [
+  { year: 2025, month: 1, activeDate: 5 },
+  { year: 2025, month: 2, activeDate: 5 },
+  { year: 2025, month: 3, activeDate: 5 },
+  { year: 2025, month: 4, activeDate: 5 },
+];
 const timeSlots = Array.from({ length: 9 }, (_, index) => index + 8);
-const miniCalendarDays = Array.from({ length: 36 }, (_, index) => (index < 5 ? null : index - 4));
 const calendarTones: EventTone[] = ['blue', 'green', 'purple', 'orange'];
 
 function getInitialLocale(): Locale {
@@ -563,6 +573,53 @@ function formatHour(hour: number, locale: Locale) {
   return hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
 }
 
+function getMonthLabel(month: CalendarMonth, locale: Locale) {
+  if (locale === 'ja') return `${month.year}年${month.month + 1}月`;
+  return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(
+    new Date(month.year, month.month, 1),
+  );
+}
+
+function getCurrentDateLabel(month: CalendarMonth, locale: Locale) {
+  if (locale === 'ja') return `${month.month + 1}月${month.activeDate}日`;
+  return new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric' }).format(
+    new Date(month.year, month.month, month.activeDate),
+  );
+}
+
+function getAgendaDateLabel(month: CalendarMonth, locale: Locale) {
+  const date = new Date(month.year, month.month, month.activeDate);
+  if (locale === 'ja') {
+    const day = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
+    return `${month.month + 1}月${month.activeDate}日 ${day}曜日`;
+  }
+  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(date);
+}
+
+function getWeekDates(month: CalendarMonth) {
+  const active = new Date(month.year, month.month, month.activeDate);
+  const start = new Date(active);
+  start.setDate(active.getDate() - active.getDay());
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return date.getDate();
+  });
+}
+
+function getActiveDay(month: CalendarMonth) {
+  return new Date(month.year, month.month, month.activeDate).getDay() + 1;
+}
+
+function getMiniCalendarDays(month: CalendarMonth) {
+  const firstDay = new Date(month.year, month.month, 1).getDay();
+  const daysInMonth = new Date(month.year, month.month + 1, 0).getDate();
+  return Array.from({ length: 42 }, (_, index) => {
+    if (index < firstDay || index >= firstDay + daysInMonth) return null;
+    return index - firstDay + 1;
+  });
+}
+
 export default function App() {
   const [locale, setLocale] = useState<Locale>(getInitialLocale);
   const [themePreference, setThemePreference] = useState<ThemePreference>(getInitialTheme);
@@ -578,9 +635,18 @@ export default function App() {
   const [eventPlacements, setEventPlacements] = useState<Record<string, EventPlacement>>({});
   const [draggingEventId, setDraggingEventId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ day: number; hour: number } | null>(null);
+  const [resizingEventId, setResizingEventId] = useState<string | null>(null);
+  const [activeMonthIndex, setActiveMonthIndex] = useState(1);
 
   const text = copy[locale];
   const resolvedTheme = useMemo(() => resolveTheme(themePreference), [themePreference]);
+  const activeMonth = calendarMonths[activeMonthIndex];
+  const monthLabel = useMemo(() => getMonthLabel(activeMonth, locale), [activeMonth, locale]);
+  const currentDateLabel = useMemo(() => getCurrentDateLabel(activeMonth, locale), [activeMonth, locale]);
+  const agendaDateLabel = useMemo(() => getAgendaDateLabel(activeMonth, locale), [activeMonth, locale]);
+  const weekDates = useMemo(() => getWeekDates(activeMonth), [activeMonth]);
+  const activeDay = useMemo(() => getActiveDay(activeMonth), [activeMonth]);
+  const miniCalendarDays = useMemo(() => getMiniCalendarDays(activeMonth), [activeMonth]);
   const scheduleEvents = useMemo(
     () =>
       events.map((event) => {
@@ -589,7 +655,7 @@ export default function App() {
       }),
     [eventPlacements],
   );
-  const todaysEvents = useMemo(() => scheduleEvents.filter((event) => event.day === 3), [scheduleEvents]);
+  const todaysEvents = useMemo(() => scheduleEvents.filter((event) => event.day === activeDay), [activeDay, scheduleEvents]);
   const searchResults = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     if (!query) return scheduleEvents.slice(0, 6);
@@ -674,6 +740,15 @@ export default function App() {
     setActiveSheet(null);
   }
 
+  function moveMonth(direction: -1 | 1) {
+    setActiveMonthIndex((current) => (current + direction + calendarMonths.length) % calendarMonths.length);
+  }
+
+  function returnToToday() {
+    setActiveMonthIndex(1);
+    openSheet('today');
+  }
+
   function getDropHour(target: HTMLElement, clientY: number) {
     const rect = target.getBoundingClientRect();
     const rawHour = 8 + ((clientY - rect.top) / 78);
@@ -697,6 +772,39 @@ export default function App() {
     }));
     setDraggingEventId(null);
     setDropTarget(null);
+  }
+
+  function handleResizeStart(pointerEvent: ReactPointerEvent<HTMLSpanElement>, event: CalendarEvent) {
+    pointerEvent.preventDefault();
+    pointerEvent.stopPropagation();
+
+    const column = pointerEvent.currentTarget.closest('.day-column') as HTMLElement | null;
+    if (!column) return;
+    const resizeColumn = column;
+
+    setResizingEventId(event.id);
+
+    function resize(moveEvent: PointerEvent) {
+      const start = parseTime(event.startTime);
+      const end = Math.min(17, Math.max(start + 0.5, getDropHour(resizeColumn, moveEvent.clientY)));
+      setEventPlacements((current) => ({
+        ...current,
+        [event.id]: {
+          day: event.day,
+          startTime: event.startTime,
+          endTime: formatTime(end),
+        },
+      }));
+    }
+
+    function stopResize() {
+      setResizingEventId(null);
+      window.removeEventListener('pointermove', resize);
+      window.removeEventListener('pointerup', stopResize);
+    }
+
+    window.addEventListener('pointermove', resize);
+    window.addEventListener('pointerup', stopResize);
   }
 
   return (
@@ -814,12 +922,12 @@ export default function App() {
 
             <GlassPanel dataId="mini-calendar" roleName="calendar">
               <div className="mini-calendar-head">
-                <h2>{text.month}</h2>
+                <h2>{monthLabel}</h2>
                 <div className="mini-calendar-controls">
-                  <IconButton dataId="mini-calendar-previous" label="Previous month">
+                  <IconButton dataId="mini-calendar-previous" label="Previous month" onClick={() => moveMonth(-1)}>
                     <ChevronLeft size={16} />
                   </IconButton>
-                  <IconButton dataId="mini-calendar-next" label="Next month">
+                  <IconButton dataId="mini-calendar-next" label="Next month" onClick={() => moveMonth(1)}>
                     <ChevronRight size={16} />
                   </IconButton>
                 </div>
@@ -836,7 +944,7 @@ export default function App() {
                     key={`${day ?? 'blank'}-${index}`}
                     type="button"
                     data-melius-ui-id={day ? `mini-calendar-day-${day}` : undefined}
-                    data-active={day === 5 ? 'true' : 'false'}
+                    data-active={day === activeMonth.activeDate ? 'true' : 'false'}
                     className="mini-day"
                     aria-hidden={!day}
                   >
@@ -876,20 +984,20 @@ export default function App() {
         <section data-melius-ui-id="calendar-workspace" data-melius-ui-role="workspace" className="calendar-workspace">
           <div data-melius-ui-id="calendar-toolbar" data-melius-ui-role="toolbar" className="calendar-toolbar">
             <div className="toolbar-left">
-              <TextButton dataId="today-button" variant="primary" onClick={() => openSheet('today')}>
+              <TextButton dataId="today-button" variant="primary" onClick={returnToToday}>
                 {text.today}
               </TextButton>
               <div className="toolbar-nav">
-                <IconButton dataId="previous-week-button" label="Previous">
+                <IconButton dataId="previous-week-button" label="Previous" onClick={() => moveMonth(-1)}>
                   <ChevronLeft size={18} />
                 </IconButton>
-                <IconButton dataId="next-week-button" label="Next">
+                <IconButton dataId="next-week-button" label="Next" onClick={() => moveMonth(1)}>
                   <ChevronRight size={18} />
                 </IconButton>
               </div>
               <div className="date-heading">
-                <span>{text.month}</span>
-                <h1 data-melius-ui-id="current-date-label">{text.currentDate}</h1>
+                <span>{monthLabel}</span>
+                <h1 data-melius-ui-id="current-date-label">{currentDateLabel}</h1>
               </div>
             </div>
 
@@ -914,7 +1022,7 @@ export default function App() {
                 <div
                   key={day}
                   data-melius-ui-id={`week-header-${index + 1}`}
-                  data-active={weekDates[index] === 5 ? 'true' : 'false'}
+                  data-active={index + 1 === activeDay ? 'true' : 'false'}
                   className="week-day-head"
                 >
                   <span>{day}</span>
@@ -978,9 +1086,10 @@ export default function App() {
                           data-melius-ui-role="calendar-event"
                           data-tone={event.tone}
                           data-dragging={draggingEventId === event.id ? 'true' : 'false'}
+                          data-resizing={resizingEventId === event.id ? 'true' : 'false'}
                           className="event-card"
                           style={eventStyle}
-                          draggable
+                          draggable={resizingEventId !== event.id}
                           aria-grabbed={draggingEventId === event.id}
                           onDragStart={(dragEvent) => {
                             dragEvent.dataTransfer.effectAllowed = 'move';
@@ -997,6 +1106,13 @@ export default function App() {
                           <span>
                             {event.startTime} - {event.endTime}
                           </span>
+                          <span
+                            data-melius-ui-id={`event-resize-handle-${event.id}`}
+                            className="event-resize-handle"
+                            onPointerDown={(pointerEvent) => handleResizeStart(pointerEvent, event)}
+                            onClick={(clickEvent) => clickEvent.stopPropagation()}
+                            aria-hidden="true"
+                          />
                         </button>
                       );
                     })}
@@ -1009,7 +1125,7 @@ export default function App() {
         <aside data-melius-ui-id="agenda-panel" data-melius-ui-role="inspector" className="agenda-panel">
           <div className="agenda-heading">
             <div>
-              <p>{text.agenda.subtitle}</p>
+              <p>{agendaDateLabel}</p>
               <h2>{text.agenda.title}</h2>
             </div>
             <span>{todaysEvents.length}</span>
@@ -1101,7 +1217,7 @@ export default function App() {
           >
             <div className="sheet-head">
               <div>
-                <p>{text.sheets[activeSheet].subtitle}</p>
+                <p>{activeSheet === 'today' ? agendaDateLabel : text.sheets[activeSheet].subtitle}</p>
                 <h2>{text.sheets[activeSheet].title}</h2>
               </div>
               <IconButton dataId={`${activeSheet}-sheet-close-button`} label={text.sheets.common.close} onClick={closeSheet}>
@@ -1168,7 +1284,7 @@ export default function App() {
                     </label>
                     <label className="form-field">
                       <span>{text.sheets.create.date}</span>
-                      <input defaultValue={locale === 'ja' ? '2025年3月5日' : 'March 5, 2025'} />
+                      <input defaultValue={locale === 'ja' ? `${activeMonth.year}年${currentDateLabel}` : `${currentDateLabel}, ${activeMonth.year}`} />
                     </label>
                     <label className="form-field">
                       <span>{text.sheets.create.time}</span>
@@ -1385,7 +1501,7 @@ export default function App() {
                   {text.detail.date}
                 </dt>
                 <dd>
-                  {text.weekDays[selectedEvent.day - 1]}, {weekDates[selectedEvent.day - 1]} {text.month}
+                  {text.weekDays[selectedEvent.day - 1]}, {weekDates[selectedEvent.day - 1]} {monthLabel}
                 </dd>
               </div>
               <div>

@@ -5,4 +5,4 @@ Do not add data-melius-id, data-melius-form, data-melius-action, or data-melius-
 Do not add src/melius.app-spec.json, src/melius.client.ts, or src/melius.actions.ts to the template source.
 If the user asks for saving events, syncing calendars, sending invites, playing audio, authentication, notifications, or other platform behavior, add the required Melius App Spec and data-melius-* bindings during the generated app editing flow, not as part of the UI-only template baseline.
 Keep UI styling editable by the visual editor: prefer static className strings on real HTML elements inside the template UI kit.
-Keep the calendar grid, draggable event cards, inline search results, right-side agenda panel, assistant prompt, modal, controls, action sheets, and action buttons visually complete, but treat them as presentational UI until Melius bindings are added later.
+Keep the calendar grid, month navigation, draggable and resizable event cards, inline search results, right-side agenda panel, assistant prompt, modal, controls, action sheets, and action buttons visually complete, but treat them as presentational UI until Melius bindings are added later.
