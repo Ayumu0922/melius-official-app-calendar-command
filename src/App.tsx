@@ -90,6 +90,14 @@ interface DragPreview {
   height: number;
   offsetX: number;
   offsetY: number;
+  startTime: string;
+  endTime: string;
+}
+
+interface DropSlot {
+  day: number;
+  start: number;
+  end: number;
 }
 
 const themeKey = 'melius-official-app-calendar-command-theme';
@@ -658,6 +666,7 @@ export default function App() {
   const [dropTarget, setDropTarget] = useState<{ day: number; hour: number } | null>(null);
   const [resizingEventId, setResizingEventId] = useState<string | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
+  const [lastMovedEventId, setLastMovedEventId] = useState<string | null>(null);
   const [activeMonthIndex, setActiveMonthIndex] = useState(1);
   const dragSessionRef = useRef<DragSession | null>(null);
   const suppressEventClickRef = useRef(false);
@@ -779,11 +788,26 @@ export default function App() {
     return Math.min(16.5, Math.max(8, Math.round(rawHour * 2) / 2));
   }
 
-  function getDayFromPoint(clientX: number, clientY: number) {
+  function getDropStartTime(target: HTMLElement, clientY: number, offsetY: number, duration: number) {
+    const rect = target.getBoundingClientRect();
+    const rawHour = 8 + ((clientY - offsetY - rect.top) / 78);
+    const snappedHour = Math.round(rawHour * 2) / 2;
+    const latestStart = Math.max(8, 17 - duration);
+    return Math.min(latestStart, Math.max(8, snappedHour));
+  }
+
+  function getDropSlotFromPoint(clientX: number, clientY: number, offsetY: number, duration: number): DropSlot | null {
     const element = document.elementFromPoint(clientX, clientY);
     const column = element?.closest('.day-column') as HTMLElement | null;
     const day = Number(column?.dataset.day);
-    return Number.isFinite(day) && day >= 1 && day <= 7 ? day : null;
+    if (!column || !Number.isFinite(day) || day < 1 || day > 7) return null;
+
+    const start = getDropStartTime(column, clientY, offsetY, duration);
+    return {
+      day,
+      start,
+      end: start + duration,
+    };
   }
 
   function handleEventPointerDown(pointerEvent: ReactPointerEvent<HTMLButtonElement>, event: CalendarEvent) {
@@ -818,6 +842,15 @@ export default function App() {
       }
 
       moveEvent.preventDefault();
+      const duration = getEventDuration(activeSession.event);
+      const slot = getDropSlotFromPoint(
+        moveEvent.clientX,
+        moveEvent.clientY,
+        activeSession.offsetY,
+        duration,
+      );
+      const previewStart = slot?.start ?? parseTime(activeSession.event.startTime);
+      const previewEnd = slot?.end ?? parseTime(activeSession.event.endTime);
       setDragPreview({
         id: activeSession.event.id,
         x: moveEvent.clientX,
@@ -826,25 +859,28 @@ export default function App() {
         height: activeSession.height,
         offsetX: activeSession.offsetX,
         offsetY: activeSession.offsetY,
+        startTime: formatTime(previewStart),
+        endTime: formatTime(previewEnd),
       });
 
-      const day = getDayFromPoint(moveEvent.clientX, moveEvent.clientY);
-      setDropTarget(day ? { day, hour: parseTime(activeSession.event.startTime) } : null);
+      setDropTarget(slot ? { day: slot.day, hour: slot.start } : null);
     }
 
     function stopDrag(upEvent: PointerEvent) {
       const activeSession = dragSessionRef.current;
       if (activeSession?.started) {
-        const day = getDayFromPoint(upEvent.clientX, upEvent.clientY);
-        if (day) {
+        const duration = getEventDuration(activeSession.event);
+        const slot = getDropSlotFromPoint(upEvent.clientX, upEvent.clientY, activeSession.offsetY, duration);
+        if (slot) {
           setEventPlacements((current) => ({
             ...current,
             [activeSession.event.id]: {
-              day,
-              startTime: activeSession.event.startTime,
-              endTime: activeSession.event.endTime,
+              day: slot.day,
+              startTime: formatTime(slot.start),
+              endTime: formatTime(slot.end),
             },
           }));
+          setLastMovedEventId(activeSession.event.id);
         }
       }
 
@@ -1188,6 +1224,7 @@ export default function App() {
                           data-tone={event.tone}
                           data-dragging={draggingEventId === event.id ? 'true' : 'false'}
                           data-resizing={resizingEventId === event.id ? 'true' : 'false'}
+                          data-recently-moved={lastMovedEventId === event.id ? 'true' : 'false'}
                           className="event-card"
                           style={eventStyle}
                           onPointerDown={(pointerEvent) => handleEventPointerDown(pointerEvent, event)}
@@ -1323,7 +1360,7 @@ export default function App() {
         >
           <strong>{dragPreviewEvent.title[locale]}</strong>
           <span className="event-time">
-            {dragPreviewEvent.startTime} - {dragPreviewEvent.endTime}
+            {dragPreview.startTime} - {dragPreview.endTime}
           </span>
         </div>
       ) : null}
