@@ -803,7 +803,7 @@ svg {
   border: 1px solid var(--line);
   border-left: 4px solid var(--event-stripe);
   border-radius: 7px;
-  padding: 8px 9px 13px;
+  padding: 12px 9px 13px;
   color: var(--event-fg);
   text-align: left;
   background: var(--event-bg);
@@ -837,13 +837,21 @@ svg {
   position: absolute;
   left: 14px;
   right: 10px;
-  bottom: 3px;
   display: block;
   height: 8px;
   margin: 0;
   border-radius: 999px;
   color: transparent;
   cursor: ns-resize;
+  touch-action: none;
+}
+
+.event-card .event-resize-handle-top {
+  top: 2px;
+}
+
+.event-card .event-resize-handle-bottom {
+  bottom: 3px;
 }
 
 .event-card .event-resize-handle::before {
@@ -855,7 +863,14 @@ svg {
   height: 3px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--event-muted) 46%, transparent);
+  opacity: 0;
   transform: translate(-50%, -50%);
+  transition: opacity 140ms ease, background-color 140ms ease;
+}
+
+.event-card:hover .event-resize-handle::before,
+.event-card[data-resizing="true"] .event-resize-handle::before {
+  opacity: 1;
 }
 
 .event-card .event-resize-handle:hover::before {
@@ -897,7 +912,7 @@ svg {
   white-space: nowrap;
 }
 
-.event-card span {
+.event-card .event-time {
   display: block;
   margin-top: 4px;
   color: var(--event-muted);

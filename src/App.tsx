@@ -755,26 +755,28 @@ export default function App() {
     return Math.min(16.5, Math.max(8, Math.round(rawHour * 2) / 2));
   }
 
-  function handleDropOnDay(day: number, target: HTMLElement, clientY: number) {
+  function handleDropOnDay(day: number) {
     if (!draggingEventId) return;
     const event = scheduleEvents.find((item) => item.id === draggingEventId);
     if (!event) return;
 
-    const duration = getEventDuration(event);
-    const start = Math.min(getDropHour(target, clientY), 17 - duration);
     setEventPlacements((current) => ({
       ...current,
       [event.id]: {
         day,
-        startTime: formatTime(start),
-        endTime: formatTime(start + duration),
+        startTime: event.startTime,
+        endTime: event.endTime,
       },
     }));
     setDraggingEventId(null);
     setDropTarget(null);
   }
 
-  function handleResizeStart(pointerEvent: ReactPointerEvent<HTMLSpanElement>, event: CalendarEvent) {
+  function handleResizeStart(
+    pointerEvent: ReactPointerEvent<HTMLSpanElement>,
+    event: CalendarEvent,
+    edge: 'start' | 'end',
+  ) {
     pointerEvent.preventDefault();
     pointerEvent.stopPropagation();
 
@@ -786,13 +788,16 @@ export default function App() {
 
     function resize(moveEvent: PointerEvent) {
       const start = parseTime(event.startTime);
-      const end = Math.min(17, Math.max(start + 0.5, getDropHour(resizeColumn, moveEvent.clientY)));
+      const end = parseTime(event.endTime);
+      const nextTime = getDropHour(resizeColumn, moveEvent.clientY);
+      const nextStart = edge === 'start' ? Math.max(8, Math.min(end - 0.5, nextTime)) : start;
+      const nextEnd = edge === 'end' ? Math.min(17, Math.max(start + 0.5, nextTime)) : end;
       setEventPlacements((current) => ({
         ...current,
         [event.id]: {
           day: event.day,
-          startTime: event.startTime,
-          endTime: formatTime(end),
+          startTime: formatTime(nextStart),
+          endTime: formatTime(nextEnd),
         },
       }));
     }
@@ -1049,10 +1054,12 @@ export default function App() {
                   className="day-column"
                   onDragOver={(event) => {
                     if (!draggingEventId) return;
+                    const draggedEvent = scheduleEvents.find((item) => item.id === draggingEventId);
+                    if (!draggedEvent) return;
                     event.preventDefault();
                     setDropTarget({
                       day: dayIndex + 1,
-                      hour: getDropHour(event.currentTarget, event.clientY),
+                      hour: parseTime(draggedEvent.startTime),
                     });
                   }}
                   onDragLeave={(event) => {
@@ -1061,7 +1068,7 @@ export default function App() {
                   }}
                   onDrop={(event) => {
                     event.preventDefault();
-                    handleDropOnDay(dayIndex + 1, event.currentTarget, event.clientY);
+                    handleDropOnDay(dayIndex + 1);
                   }}
                 >
                   {timeSlots.map((time) => (
@@ -1102,14 +1109,21 @@ export default function App() {
                           }}
                           onClick={() => setSelectedEvent(event)}
                         >
+                          <span
+                            data-melius-ui-id={`event-resize-start-handle-${event.id}`}
+                            className="event-resize-handle event-resize-handle-top"
+                            onPointerDown={(pointerEvent) => handleResizeStart(pointerEvent, event, 'start')}
+                            onClick={(clickEvent) => clickEvent.stopPropagation()}
+                            aria-hidden="true"
+                          />
                           <strong>{event.title[locale]}</strong>
-                          <span>
+                          <span className="event-time">
                             {event.startTime} - {event.endTime}
                           </span>
                           <span
-                            data-melius-ui-id={`event-resize-handle-${event.id}`}
-                            className="event-resize-handle"
-                            onPointerDown={(pointerEvent) => handleResizeStart(pointerEvent, event)}
+                            data-melius-ui-id={`event-resize-end-handle-${event.id}`}
+                            className="event-resize-handle event-resize-handle-bottom"
+                            onPointerDown={(pointerEvent) => handleResizeStart(pointerEvent, event, 'end')}
                             onClick={(clickEvent) => clickEvent.stopPropagation()}
                             aria-hidden="true"
                           />
