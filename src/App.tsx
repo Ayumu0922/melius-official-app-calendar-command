@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import {
   Bell,
   CalendarDays,
@@ -69,6 +69,27 @@ interface CalendarMonth {
   year: number;
   month: number;
   activeDate: number;
+}
+
+interface DragSession {
+  event: CalendarEvent;
+  startX: number;
+  startY: number;
+  width: number;
+  height: number;
+  offsetX: number;
+  offsetY: number;
+  started: boolean;
+}
+
+interface DragPreview {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  offsetX: number;
+  offsetY: number;
 }
 
 const themeKey = 'melius-official-app-calendar-command-theme';
@@ -636,7 +657,10 @@ export default function App() {
   const [draggingEventId, setDraggingEventId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ day: number; hour: number } | null>(null);
   const [resizingEventId, setResizingEventId] = useState<string | null>(null);
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
   const [activeMonthIndex, setActiveMonthIndex] = useState(1);
+  const dragSessionRef = useRef<DragSession | null>(null);
+  const suppressEventClickRef = useRef(false);
 
   const text = copy[locale];
   const resolvedTheme = useMemo(() => resolveTheme(themePreference), [themePreference]);
@@ -755,21 +779,106 @@ export default function App() {
     return Math.min(16.5, Math.max(8, Math.round(rawHour * 2) / 2));
   }
 
-  function handleDropOnDay(day: number) {
-    if (!draggingEventId) return;
-    const event = scheduleEvents.find((item) => item.id === draggingEventId);
-    if (!event) return;
+  function getDayFromPoint(clientX: number, clientY: number) {
+    const element = document.elementFromPoint(clientX, clientY);
+    const column = element?.closest('.day-column') as HTMLElement | null;
+    const day = Number(column?.dataset.day);
+    return Number.isFinite(day) && day >= 1 && day <= 7 ? day : null;
+  }
 
-    setEventPlacements((current) => ({
-      ...current,
-      [event.id]: {
-        day,
-        startTime: event.startTime,
-        endTime: event.endTime,
-      },
-    }));
-    setDraggingEventId(null);
-    setDropTarget(null);
+  function handleEventPointerDown(pointerEvent: ReactPointerEvent<HTMLButtonElement>, event: CalendarEvent) {
+    if (pointerEvent.button !== 0) return;
+    if ((pointerEvent.target as HTMLElement).closest('.event-resize-handle')) return;
+
+    const cardRect = pointerEvent.currentTarget.getBoundingClientRect();
+    const session: DragSession = {
+      event,
+      startX: pointerEvent.clientX,
+      startY: pointerEvent.clientY,
+      width: cardRect.width,
+      height: cardRect.height,
+      offsetX: pointerEvent.clientX - cardRect.left,
+      offsetY: pointerEvent.clientY - cardRect.top,
+      started: false,
+    };
+
+    dragSessionRef.current = session;
+
+    function moveDrag(moveEvent: PointerEvent) {
+      const activeSession = dragSessionRef.current;
+      if (!activeSession || activeSession.event.id !== event.id) return;
+
+      const distance = Math.hypot(moveEvent.clientX - activeSession.startX, moveEvent.clientY - activeSession.startY);
+      if (!activeSession.started && distance < 5) return;
+
+      if (!activeSession.started) {
+        activeSession.started = true;
+        suppressEventClickRef.current = true;
+        setDraggingEventId(activeSession.event.id);
+      }
+
+      moveEvent.preventDefault();
+      setDragPreview({
+        id: activeSession.event.id,
+        x: moveEvent.clientX,
+        y: moveEvent.clientY,
+        width: activeSession.width,
+        height: activeSession.height,
+        offsetX: activeSession.offsetX,
+        offsetY: activeSession.offsetY,
+      });
+
+      const day = getDayFromPoint(moveEvent.clientX, moveEvent.clientY);
+      setDropTarget(day ? { day, hour: parseTime(activeSession.event.startTime) } : null);
+    }
+
+    function stopDrag(upEvent: PointerEvent) {
+      const activeSession = dragSessionRef.current;
+      if (activeSession?.started) {
+        const day = getDayFromPoint(upEvent.clientX, upEvent.clientY);
+        if (day) {
+          setEventPlacements((current) => ({
+            ...current,
+            [activeSession.event.id]: {
+              day,
+              startTime: activeSession.event.startTime,
+              endTime: activeSession.event.endTime,
+            },
+          }));
+        }
+      }
+
+      dragSessionRef.current = null;
+      setDraggingEventId(null);
+      setDropTarget(null);
+      setDragPreview(null);
+      window.removeEventListener('pointermove', moveDrag);
+      window.removeEventListener('pointerup', stopDrag);
+      window.removeEventListener('pointercancel', cancelDrag);
+
+      if (activeSession?.started) {
+        window.setTimeout(() => {
+          suppressEventClickRef.current = false;
+        }, 0);
+      } else {
+        suppressEventClickRef.current = false;
+      }
+    }
+
+    function cancelDrag() {
+      dragSessionRef.current = null;
+      suppressEventClickRef.current = false;
+      setDraggingEventId(null);
+      setDropTarget(null);
+      setDragPreview(null);
+      window.removeEventListener('pointermove', moveDrag);
+      window.removeEventListener('pointerup', stopDrag);
+      window.removeEventListener('pointercancel', cancelDrag);
+    }
+
+    window.addEventListener('pointermove', moveDrag);
+    window.addEventListener('pointerup', stopDrag);
+    window.addEventListener('pointercancel', cancelDrag);
   }
 
   function handleResizeStart(
@@ -811,6 +920,8 @@ export default function App() {
     window.addEventListener('pointermove', resize);
     window.addEventListener('pointerup', stopResize);
   }
+
+  const dragPreviewEvent = dragPreview ? scheduleEvents.find((event) => event.id === dragPreview.id) : null;
 
   return (
     <AppSurface data-loaded={isLoaded ? 'true' : 'false'}>
@@ -1050,26 +1161,9 @@ export default function App() {
                   key={dayIndex}
                   data-melius-ui-id={`calendar-day-column-${dayIndex + 1}`}
                   data-melius-ui-role="calendar-column"
+                  data-day={dayIndex + 1}
                   data-drop-target={dropTarget?.day === dayIndex + 1 ? 'true' : 'false'}
                   className="day-column"
-                  onDragOver={(event) => {
-                    if (!draggingEventId) return;
-                    const draggedEvent = scheduleEvents.find((item) => item.id === draggingEventId);
-                    if (!draggedEvent) return;
-                    event.preventDefault();
-                    setDropTarget({
-                      day: dayIndex + 1,
-                      hour: parseTime(draggedEvent.startTime),
-                    });
-                  }}
-                  onDragLeave={(event) => {
-                    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-                    setDropTarget(null);
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    handleDropOnDay(dayIndex + 1);
-                  }}
                 >
                   {timeSlots.map((time) => (
                     <div key={time} className="time-cell" />
@@ -1096,18 +1190,12 @@ export default function App() {
                           data-resizing={resizingEventId === event.id ? 'true' : 'false'}
                           className="event-card"
                           style={eventStyle}
-                          draggable={resizingEventId !== event.id}
+                          onPointerDown={(pointerEvent) => handleEventPointerDown(pointerEvent, event)}
                           aria-grabbed={draggingEventId === event.id}
-                          onDragStart={(dragEvent) => {
-                            dragEvent.dataTransfer.effectAllowed = 'move';
-                            dragEvent.dataTransfer.setData('text/plain', event.id);
-                            setDraggingEventId(event.id);
+                          onClick={() => {
+                            if (suppressEventClickRef.current) return;
+                            setSelectedEvent(event);
                           }}
-                          onDragEnd={() => {
-                            setDraggingEventId(null);
-                            setDropTarget(null);
-                          }}
-                          onClick={() => setSelectedEvent(event)}
                         >
                           <span
                             data-melius-ui-id={`event-resize-start-handle-${event.id}`}
@@ -1220,6 +1308,25 @@ export default function App() {
           ) : null}
         </aside>
       </main>
+
+      {dragPreview && dragPreviewEvent ? (
+        <div
+          data-melius-ui-id={`event-drag-preview-${dragPreviewEvent.id}`}
+          data-melius-ui-role="calendar-event"
+          data-tone={dragPreviewEvent.tone}
+          className="event-drag-preview"
+          style={{
+            width: `${dragPreview.width}px`,
+            height: `${dragPreview.height}px`,
+            transform: `translate3d(${dragPreview.x - dragPreview.offsetX}px, ${dragPreview.y - dragPreview.offsetY}px, 0)`,
+          }}
+        >
+          <strong>{dragPreviewEvent.title[locale]}</strong>
+          <span className="event-time">
+            {dragPreviewEvent.startTime} - {dragPreviewEvent.endTime}
+          </span>
+        </div>
+      ) : null}
 
       {activeSheet ? (
         <div data-melius-ui-id="action-sheet-overlay" data-melius-ui-role="dialog" className="sheet-overlay">

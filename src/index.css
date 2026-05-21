@@ -787,6 +787,7 @@ svg {
   background:
     linear-gradient(90deg, transparent 0, transparent calc(100% - 1px), var(--line-soft) calc(100% - 1px)),
     color-mix(in srgb, var(--panel) 84%, var(--button-hover) 16%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent);
 }
 
 .time-cell {
@@ -809,7 +810,23 @@ svg {
   background: var(--event-bg);
   box-shadow: 0 8px 18px rgba(24, 24, 27, 0.08);
   cursor: grab;
+  touch-action: none;
+  user-select: none;
   transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.event-card::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 13px;
+  height: 9px;
+  opacity: 0;
+  background-image: radial-gradient(currentColor 1px, transparent 1.4px);
+  background-size: 4px 4px;
+  color: var(--event-muted);
+  transition: opacity 140ms ease;
 }
 
 .event-card:hover {
@@ -818,13 +835,19 @@ svg {
   box-shadow: 0 14px 28px rgba(24, 24, 27, 0.12);
 }
 
+.event-card:hover::after,
+.event-card[data-dragging="true"]::after {
+  opacity: 0.58;
+}
+
 .event-card:active {
   cursor: grabbing;
 }
 
 .event-card[data-dragging="true"] {
-  opacity: 0.48;
-  transform: scale(0.98);
+  opacity: 0.34;
+  transform: scale(0.985);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 24%, transparent);
 }
 
 .event-card[data-resizing="true"] {
@@ -901,7 +924,27 @@ svg {
   transform: translateY(-50%);
 }
 
-.event-card strong {
+.event-drag-preview {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 70;
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--event-stripe);
+  border-radius: 7px;
+  padding: 12px 9px 13px;
+  color: var(--event-fg);
+  text-align: left;
+  background: var(--event-hover);
+  box-shadow: 0 22px 46px rgba(24, 24, 27, 0.2);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.event-card strong,
+.event-drag-preview strong {
   display: block;
   overflow: hidden;
   color: var(--event-fg);
@@ -912,7 +955,8 @@ svg {
   white-space: nowrap;
 }
 
-.event-card .event-time {
+.event-card .event-time,
+.event-drag-preview .event-time {
   display: block;
   margin-top: 4px;
   color: var(--event-muted);
